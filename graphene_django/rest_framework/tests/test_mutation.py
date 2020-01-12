@@ -8,7 +8,7 @@ from graphene.types.inputobjecttype import InputObjectType
 
 from ...settings import graphene_settings
 from ...types import DjangoObjectType
-from ..models import MyFakeModel, MyFakeModelWithPassword
+from ..models import MyFakeModel, MyFakeModelWithPassword, MyFakeModelWithChoices
 from ..mutation import SerializerMutation
 
 
@@ -36,6 +36,17 @@ class MyModelSerializer(serializers.ModelSerializer):
 class MyModelMutation(SerializerMutation):
     class Meta:
         serializer_class = MyModelSerializer
+
+
+class ChoicesModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MyFakeModelWithChoices
+        fields = "__all__"
+
+
+class ChoicesModelMutation(SerializerMutation):
+    class Meta:
+        serializer_class = ChoicesModelSerializer
 
 
 class MySerializer(serializers.Serializer):
@@ -130,6 +141,28 @@ def test_write_only_field_using_extra_kwargs():
     assert not hasattr(
         result, "password"
     ), "'password' is write_only field and shouldn't be visible"
+
+
+@mark.django_db
+def test_mutate_choices_field():
+
+    result = ChoicesModelMutation.mutate_and_get_payload(
+        None, mock_info(), **{"cool_name": "New Narf", "status": "ok"}
+    )
+
+    assert hasattr(result, "cool_name")
+    assert getattr(result, "status", "") == "ok"
+
+
+@mark.django_db
+def test_invalid_mutate_choices_field():
+
+    result = ChoicesModelMutation.mutate_and_get_payload(
+        None, mock_info(), **{"cool_name": "New Narf", "status": "invalid"}
+    )
+
+    assert hasattr(result, "created")
+    assert result.created is None
 
 
 def test_nested_model():
